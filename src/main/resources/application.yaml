@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: geoserver-publisher
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    username: ${GEOSERVER_PUBLISHER_DB_USER}
+    password: ${GEOSERVER_PUBLISHER_DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+geoserver:
+  url: ${GEOSERVER_URL}
+  login: ${GEOSERVER_LOGIN}
+  password: ${GEOSERVER_PASSWORD}
+  store:
+    host: ${DB_HOST}
+    port: ${DB_PORT}
+    database: ${DB_NAME}
+    schema: ${DB_SCHEMA}
+    user: ${STORE_DB_USER}
+    passwd: ${STORE_DB_PASSWORD}
+    dbtype: ${STORE_DB_TYPE:postgis}
+
+schema-crawler:
+  schema: ${DB_SCHEMA}
+  exclude-table-suffixes:
+    - _hst
+    - _rel_v

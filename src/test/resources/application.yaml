@@ -1,0 +1,11 @@
+geoserver:
+  url: url
+  login: login
+  password: password
+  store:
+    host: host
+    port: port
+    database: db
+    schema: schema
+    user: user
+    passwd: password

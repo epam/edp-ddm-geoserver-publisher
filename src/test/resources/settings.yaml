@@ -1,0 +1,9 @@
+settings:
+  general:
+    package: package
+    register: register
+    version: 0.0.1-SNAPSHOT
+  kafka:
+    retention-policy-in-days:
+      read: 100
+      write: 100
