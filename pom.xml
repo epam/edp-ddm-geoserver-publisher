@@ -20,13 +20,23 @@
 		<java.version>11</java.version>
 		<geoserver.version>2.21.0</geoserver.version>
 		<schemacrawler.version>16.11.5</schemacrawler.version>
-		<jackson.version>2.13.0</jackson.version>
+		<jackson.version>2.13.4</jackson.version>
 		<sonar.coverage.exclusions>
 			**/cli/**/*,
 			**/config/**/*,
 			**/model/**/*
 		</sonar.coverage.exclusions>
 	</properties>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-databind</artifactId>
+				<version>${jackson.version}</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<dependencies>
 		<dependency>
