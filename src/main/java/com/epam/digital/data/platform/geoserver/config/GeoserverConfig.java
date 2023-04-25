@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 EPAM Systems.
+ * Copyright 2023 EPAM Systems.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,6 +62,8 @@ public class GeoserverConfig {
     params.put("user", storeConfigProperties.getUser());
     params.put("passwd", storeConfigProperties.getPasswd());
     params.put("dbtype", storeConfigProperties.getDbtype());
+    params.put("Primary key metadata table", "public.ddm_geoserver_pk_metadata");
+    params.put("Expose primary keys", Boolean.TRUE.toString());
     return params;
   }
 

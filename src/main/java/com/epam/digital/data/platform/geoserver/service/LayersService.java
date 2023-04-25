@@ -48,7 +48,6 @@ public class LayersService {
             .filter(this::isTableContainingGeometryColumn)
             .map(NamedObject::getName)
             .collect(Collectors.toList());
-
     tablesWithGeometry.forEach(tableName -> createFeatureTypeForTable(tableName, dataStore));
   }
 

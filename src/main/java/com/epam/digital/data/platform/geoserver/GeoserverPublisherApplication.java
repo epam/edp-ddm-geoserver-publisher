@@ -18,6 +18,7 @@ package com.epam.digital.data.platform.geoserver;
 
 import com.epam.digital.data.platform.geoserver.cli.CommandLineArg;
 import com.epam.digital.data.platform.geoserver.model.SettingsYaml;
+import com.epam.digital.data.platform.geoserver.service.GeoMetadataService;
 import com.epam.digital.data.platform.geoserver.service.LayersService;
 import com.epam.digital.data.platform.geoserver.service.StoreService;
 import com.epam.digital.data.platform.geoserver.service.WorkspaceService;
@@ -39,16 +40,19 @@ public class GeoserverPublisherApplication implements ApplicationRunner {
   private final StoreService storeService;
 
   private final LayersService layersService;
+  private final GeoMetadataService metadataService;
 
   public GeoserverPublisherApplication(
       ObjectMapper yamlObjectMapper,
       WorkspaceService workspaceService,
       StoreService storeService,
-      LayersService layersService) {
+      LayersService layersService,
+      GeoMetadataService metadataService) {
     this.yamlObjectMapper = yamlObjectMapper;
     this.workspaceService = workspaceService;
     this.storeService = storeService;
     this.layersService = layersService;
+    this.metadataService = metadataService;
   }
 
   public static void main(String[] args) {
@@ -63,6 +67,7 @@ public class GeoserverPublisherApplication implements ApplicationRunner {
             .getSettings();
     var workspace = workspaceService.create(settings);
     var dataStore = storeService.create(workspace);
+    metadataService.processMetadata();
     layersService.create(dataStore);
   }
 
