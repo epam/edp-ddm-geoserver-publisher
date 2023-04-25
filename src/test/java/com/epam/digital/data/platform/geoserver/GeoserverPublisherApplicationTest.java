@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 EPAM Systems.
+ * Copyright 2023 EPAM Systems.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package com.epam.digital.data.platform.geoserver;
 
 import com.epam.digital.data.platform.geoserver.config.GeneralConfig;
 import com.epam.digital.data.platform.geoserver.model.SettingsYaml.Settings;
+import com.epam.digital.data.platform.geoserver.service.GeoMetadataService;
 import com.epam.digital.data.platform.geoserver.service.LayersService;
 import com.epam.digital.data.platform.geoserver.service.StoreService;
 import com.epam.digital.data.platform.geoserver.service.WorkspaceService;
@@ -56,12 +57,14 @@ class GeoserverPublisherApplicationTest {
   private StoreService storeService;
   @MockBean
   private LayersService layersService;
+  @MockBean
+  private GeoMetadataService metadataService;
 
   @BeforeEach
   void beforeEach() {
     application =
         new GeoserverPublisherApplication(
-            yamlObjectMapper, workspaceService, storeService, layersService);
+            yamlObjectMapper, workspaceService, storeService, layersService, metadataService);
   }
 
   @Test
