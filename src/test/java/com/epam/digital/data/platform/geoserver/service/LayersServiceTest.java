@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 EPAM Systems.
+ * Copyright 2023 EPAM Systems.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,24 @@
 
 package com.epam.digital.data.platform.geoserver.service;
 
-import org.geoserver.openapi.model.catalog.FeatureTypeInfo;
-import org.geoserver.openapi.v1.model.DataStoreResponse;
-import org.geoserver.openapi.v1.model.NamedLink;
-import org.geoserver.restconfig.client.FeatureTypesClient;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
+import com.epam.digital.data.platform.geoserver.client.GeoserverFeignClient;
+import com.epam.digital.data.platform.geoserver.model.DataStoreResponse;
+import com.epam.digital.data.platform.geoserver.model.FeatureTypeInfoWrapper;
+import com.epam.digital.data.platform.geoserver.model.FeatureTypeResponseWrapper;
+import com.epam.digital.data.platform.geoserver.model.NamedLink;
+import feign.FeignException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,20 +45,6 @@ import schemacrawler.schema.Column;
 import schemacrawler.schema.ColumnDataType;
 import schemacrawler.schema.Table;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
-
 @ExtendWith(MockitoExtension.class)
 class LayersServiceTest {
 
@@ -53,15 +53,12 @@ class LayersServiceTest {
 
   private LayersService service;
 
-  @Mock
-  private FeatureTypesClient featureTypesClient;
-  @Mock
-  private Catalog catalog;
-
+  @Mock private GeoserverFeignClient geoserverFeignClient;
+  @Mock private Catalog catalog;
 
   @BeforeEach
   void beforeEach() {
-    service = new LayersService(featureTypesClient, catalog);
+    service = new LayersService(geoserverFeignClient, catalog);
   }
 
   @Test
@@ -72,7 +69,7 @@ class LayersServiceTest {
 
     service.create(dataStore);
 
-    verifyNoInteractions(featureTypesClient);
+    verifyNoInteractions(geoserverFeignClient);
   }
 
   @Test
@@ -81,23 +78,26 @@ class LayersServiceTest {
     var table1 = mockTableWithColumns(geometryTableName, "text", "geometry");
     var table2 = mockTableWithColumns("some_table", "text", "uuid");
     when(catalog.getTables()).thenReturn(List.of(table1, table2));
-    when(featureTypesClient.getFeatureType(WORKSPACE_NAME, STORE_NAME, geometryTableName))
-        .thenReturn(Optional.empty());
+    when(geoserverFeignClient.getFeatureType(WORKSPACE_NAME, STORE_NAME, geometryTableName, true))
+        .thenThrow(FeignException.NotFound.class);
     var dataStore =
         new DataStoreResponse().workspace(new NamedLink().name(WORKSPACE_NAME)).name(STORE_NAME);
 
     service.create(dataStore);
 
-    verify(featureTypesClient).getFeatureType(WORKSPACE_NAME, STORE_NAME, geometryTableName);
-    ArgumentCaptor<FeatureTypeInfo> featureTypeCaptor = ArgumentCaptor.forClass(FeatureTypeInfo.class);
-    verify(featureTypesClient).create(eq(WORKSPACE_NAME), featureTypeCaptor.capture());
+    verify(geoserverFeignClient)
+        .getFeatureType(WORKSPACE_NAME, STORE_NAME, geometryTableName, true);
+    ArgumentCaptor<FeatureTypeInfoWrapper> featureTypeCaptor =
+        ArgumentCaptor.forClass(FeatureTypeInfoWrapper.class);
+    verify(geoserverFeignClient)
+        .createFeatureTypeOnStore(eq(WORKSPACE_NAME), eq(STORE_NAME), featureTypeCaptor.capture());
     var actualFt = featureTypeCaptor.getValue();
-    assertThat(actualFt.getName()).isEqualTo(geometryTableName);
-    assertThat(actualFt.getNativeName()).isEqualTo(geometryTableName);
-    assertThat(actualFt.getTitle()).isEqualTo(geometryTableName);
-    assertThat(actualFt.getNativeCRS()).isEqualTo("EPSG:4326");
-    assertThat(actualFt.getSrs()).isEqualTo("EPSG:4326");
-    assertThat(actualFt.getEnabled()).isTrue();
+    assertThat(actualFt.getFeatureType().getName()).isEqualTo(geometryTableName);
+    assertThat(actualFt.getFeatureType().getNativeName()).isEqualTo(geometryTableName);
+    assertThat(actualFt.getFeatureType().getTitle()).isEqualTo(geometryTableName);
+    assertThat(actualFt.getFeatureType().getNativeCRS()).isEqualTo("EPSG:4326");
+    assertThat(actualFt.getFeatureType().getSrs()).isEqualTo("EPSG:4326");
+    assertThat(actualFt.getFeatureType().getEnabled()).isTrue();
   }
 
   @Test
@@ -106,23 +106,31 @@ class LayersServiceTest {
     var table1 = mockTableWithColumns(geometryTableName, "text", "geometry");
     var table2 = mockTableWithColumns("some_table", "text", "uuid");
     when(catalog.getTables()).thenReturn(List.of(table1, table2));
-    when(featureTypesClient.getFeatureType(WORKSPACE_NAME, STORE_NAME, geometryTableName))
-            .thenReturn(Optional.of(new FeatureTypeInfo()));
+    when(geoserverFeignClient.getFeatureType(WORKSPACE_NAME, STORE_NAME, geometryTableName, true))
+        .thenReturn(new FeatureTypeResponseWrapper());
     var dataStore =
-            new DataStoreResponse().workspace(new NamedLink().name(WORKSPACE_NAME)).name(STORE_NAME);
+        new DataStoreResponse().workspace(new NamedLink().name(WORKSPACE_NAME)).name(STORE_NAME);
 
     service.create(dataStore);
 
-    verify(featureTypesClient).getFeatureType(WORKSPACE_NAME, STORE_NAME, geometryTableName);
-    ArgumentCaptor<FeatureTypeInfo> featureTypeCaptor = ArgumentCaptor.forClass(FeatureTypeInfo.class);
-    verify(featureTypesClient).update(eq(WORKSPACE_NAME), eq(geometryTableName), featureTypeCaptor.capture());
+    verify(geoserverFeignClient)
+        .getFeatureType(WORKSPACE_NAME, STORE_NAME, geometryTableName, true);
+    ArgumentCaptor<FeatureTypeInfoWrapper> featureTypeCaptor =
+        ArgumentCaptor.forClass(FeatureTypeInfoWrapper.class);
+    verify(geoserverFeignClient)
+        .modifyFeatureTypeByStore(
+            eq(WORKSPACE_NAME),
+            eq(STORE_NAME),
+            eq(geometryTableName),
+            featureTypeCaptor.capture(),
+            eq(null));
     var actualFt = featureTypeCaptor.getValue();
-    assertThat(actualFt.getName()).isEqualTo(geometryTableName);
-    assertThat(actualFt.getNativeName()).isEqualTo(geometryTableName);
-    assertThat(actualFt.getTitle()).isEqualTo(geometryTableName);
-    assertThat(actualFt.getNativeCRS()).isEqualTo("EPSG:4326");
-    assertThat(actualFt.getSrs()).isEqualTo("EPSG:4326");
-    assertThat(actualFt.getEnabled()).isTrue();
+    assertThat(actualFt.getFeatureType().getName()).isEqualTo(geometryTableName);
+    assertThat(actualFt.getFeatureType().getNativeName()).isEqualTo(geometryTableName);
+    assertThat(actualFt.getFeatureType().getTitle()).isEqualTo(geometryTableName);
+    assertThat(actualFt.getFeatureType().getNativeCRS()).isEqualTo("EPSG:4326");
+    assertThat(actualFt.getFeatureType().getSrs()).isEqualTo("EPSG:4326");
+    assertThat(actualFt.getFeatureType().getEnabled()).isTrue();
   }
 
   private Table mockTableWithColumns(String tableName, String... columnTypes) {

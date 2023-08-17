@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 EPAM Systems.
+ * Copyright 2023 EPAM Systems.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,29 +16,32 @@
 
 package com.epam.digital.data.platform.geoserver.service;
 
-import org.geoserver.openapi.model.catalog.DataStoreInfo;
-import org.geoserver.openapi.model.catalog.FeatureTypeInfo;
-import org.geoserver.openapi.v1.model.DataStoreResponse;
-import org.geoserver.restconfig.client.FeatureTypesClient;
+import com.epam.digital.data.platform.geoserver.client.GeoserverFeignClient;
+import com.epam.digital.data.platform.geoserver.model.DataStoreInfo;
+import com.epam.digital.data.platform.geoserver.model.DataStoreResponse;
+import com.epam.digital.data.platform.geoserver.model.FeatureTypeInfo;
+import com.epam.digital.data.platform.geoserver.model.FeatureTypeInfoWrapper;
+import com.epam.digital.data.platform.geoserver.model.FeatureTypeResponseWrapper;
+import feign.FeignException;
+import java.util.Optional;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 import schemacrawler.schema.Catalog;
 import schemacrawler.schema.NamedObject;
 import schemacrawler.schema.Table;
-
-import java.util.stream.Collectors;
 
 @Component
 public class LayersService {
 
   private static final String GEOMETRY_TYPE = "geometry";
 
-  private final FeatureTypesClient featureTypesClient;
+  private final GeoserverFeignClient geoserverFeignClient;
   private final Catalog catalog;
 
   public LayersService(
-      FeatureTypesClient featureTypesClient,
+      GeoserverFeignClient geoserverFeignClient,
       Catalog catalog) {
-    this.featureTypesClient = featureTypesClient;
+    this.geoserverFeignClient = geoserverFeignClient;
     this.catalog = catalog;
   }
 
@@ -59,12 +62,27 @@ public class LayersService {
 
   private void createFeatureTypeForTable(String tableName, DataStoreResponse dataStore) {
     var featureType = createDefaultFeatureTypeForTable(tableName, dataStore);
-    if (featureTypesClient
-        .getFeatureType(dataStore.getWorkspace().getName(), dataStore.getName(), tableName)
-        .isPresent()) {
-      featureTypesClient.update(dataStore.getWorkspace().getName(), tableName, featureType);
+    Optional<FeatureTypeResponseWrapper> existingFeatureType;
+    try {
+      existingFeatureType =
+          Optional.of(
+              geoserverFeignClient.getFeatureType(
+                  dataStore.getWorkspace().getName(), dataStore.getName(), tableName, true));
+    } catch (FeignException.NotFound ex) {
+      existingFeatureType = Optional.empty();
+    }
+    if (existingFeatureType.isPresent()) {
+      geoserverFeignClient.modifyFeatureTypeByStore(
+          dataStore.getWorkspace().getName(),
+          dataStore.getName(),
+          tableName,
+          (new FeatureTypeInfoWrapper()).featureType(featureType),
+          null);
     } else {
-      featureTypesClient.create(dataStore.getWorkspace().getName(), featureType);
+      geoserverFeignClient.createFeatureTypeOnStore(
+          dataStore.getWorkspace().getName(),
+          dataStore.getName(),
+          (new FeatureTypeInfoWrapper()).featureType(featureType));
     }
   }
 

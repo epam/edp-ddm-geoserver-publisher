@@ -16,33 +16,33 @@
 
 package com.epam.digital.data.platform.geoserver;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.epam.digital.data.platform.geoserver.config.GeneralConfig;
+import com.epam.digital.data.platform.geoserver.model.DataStoreResponse;
 import com.epam.digital.data.platform.geoserver.model.SettingsYaml.Settings;
+import com.epam.digital.data.platform.geoserver.model.WorkspaceInfo;
 import com.epam.digital.data.platform.geoserver.service.GeoMetadataService;
 import com.epam.digital.data.platform.geoserver.service.LayersService;
 import com.epam.digital.data.platform.geoserver.service.StoreService;
 import com.epam.digital.data.platform.geoserver.service.WorkspaceService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.geoserver.openapi.model.catalog.WorkspaceInfo;
-import org.geoserver.openapi.v1.model.DataStoreResponse;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.DefaultApplicationArguments;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Objects;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.DefaultApplicationArguments;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 
 @SpringBootTest(classes = {GeneralConfig.class})
 class GeoserverPublisherApplicationTest {
@@ -50,6 +50,7 @@ class GeoserverPublisherApplicationTest {
   private GeoserverPublisherApplication application;
 
   @Autowired
+  @Qualifier("yamlObjectMapper")
   private ObjectMapper yamlObjectMapper;
   @MockBean
   private WorkspaceService workspaceService;

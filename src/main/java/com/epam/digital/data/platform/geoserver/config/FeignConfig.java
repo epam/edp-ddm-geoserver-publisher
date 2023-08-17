@@ -16,28 +16,24 @@
 
 package com.epam.digital.data.platform.geoserver.config;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.epam.digital.data.platform.geoserver.client.GeoserverFeignClient;
+import com.epam.digital.data.platform.geoserver.config.properties.GeoserverConfigProperties;
+import feign.auth.BasicAuthRequestInterceptor;
+import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
 
+/**
+ * The class represents a configuration for feign client.
+ */
 @Configuration
-public class GeneralConfig {
+@EnableFeignClients(basePackageClasses = GeoserverFeignClient.class)
+public class FeignConfig {
 
   @Bean
-  public ObjectMapper yamlObjectMapper() {
-    return new ObjectMapper(new YAMLFactory());
-  }
-
-  @Primary
-  @Bean
-  public ObjectMapper jsonObjectMapper() {
-    final ObjectMapper mapper = new ObjectMapper();
-    mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
-    mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    return mapper;
+  public BasicAuthRequestInterceptor basicAuthRequestInterceptor(
+      GeoserverConfigProperties geoserverConfigProperties) {
+    return new BasicAuthRequestInterceptor(
+        geoserverConfigProperties.getLogin(), geoserverConfigProperties.getPassword());
   }
 }

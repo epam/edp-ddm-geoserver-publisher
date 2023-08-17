@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 EPAM Systems.
+ * Copyright 2023 EPAM Systems.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,24 +16,26 @@
 
 package com.epam.digital.data.platform.geoserver.service;
 
-import org.geoserver.openapi.model.catalog.DataStoreInfo;
-import org.geoserver.openapi.model.catalog.WorkspaceInfo;
-import org.geoserver.openapi.v1.model.DataStoreResponse;
-import org.geoserver.restconfig.client.DataStoresClient;
-import org.springframework.stereotype.Component;
-
+import com.epam.digital.data.platform.geoserver.client.GeoserverFeignClient;
+import com.epam.digital.data.platform.geoserver.model.DataStoreInfo;
+import com.epam.digital.data.platform.geoserver.model.DataStoreInfoWrapper;
+import com.epam.digital.data.platform.geoserver.model.DataStoreResponse;
+import com.epam.digital.data.platform.geoserver.model.DataStoreWrapper;
+import com.epam.digital.data.platform.geoserver.model.WorkspaceInfo;
+import feign.FeignException;
 import java.util.Map;
+import java.util.Optional;
+import org.springframework.stereotype.Component;
 
 @Component
 public class StoreService {
 
-  private final DataStoresClient dataStoresClient;
+  private final GeoserverFeignClient geoserverFeignClient;
   private final Map<String, String> storeConnectionParameters;
 
   public StoreService(
-      DataStoresClient dataStoresClient,
-      Map<String, String> storeConnectionParameters) {
-    this.dataStoresClient = dataStoresClient;
+      GeoserverFeignClient geoserverFeignClient, Map<String, String> storeConnectionParameters) {
+    this.geoserverFeignClient = geoserverFeignClient;
     this.storeConnectionParameters = storeConnectionParameters;
   }
 
@@ -44,12 +46,18 @@ public class StoreService {
             .name(workspaceInfo.getName())
             .workspace(workspaceInfo)
             .connectionParameters(storeConnectionParameters);
-    DataStoreResponse dataStore;
-    if (dataStoresClient.findByWorkspaceAndName(workspaceInfo.getName(), workspaceInfo.getName()).isPresent()) {
-      dataStore = dataStoresClient.update(workspaceInfo.getName(), dataStoreInfo);
-    } else {
-      dataStore = dataStoresClient.create(workspaceInfo.getName(), dataStoreInfo);
+    Optional<DataStoreWrapper> existingDataStore;
+    try {
+      existingDataStore = Optional.of(geoserverFeignClient.getDataStore(workspaceInfo.getName(), workspaceInfo.getName(), true));
+    } catch (FeignException.NotFound ex) {
+      existingDataStore = Optional.empty();
     }
+    if (existingDataStore.isPresent()) {
+      geoserverFeignClient.modifyDataStore(workspaceInfo.getName(), dataStoreInfo.getName(), (new DataStoreInfoWrapper()).dataStore(dataStoreInfo));
+    } else {
+      geoserverFeignClient.createDatastore(workspaceInfo.getName(), (new DataStoreInfoWrapper()).dataStore(dataStoreInfo));
+    }
+    var dataStore = geoserverFeignClient.getDataStore(workspaceInfo.getName(), workspaceInfo.getName(), true).getDataStore();
     return dataStore;
   }
 }

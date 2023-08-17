@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 EPAM Systems.
+ * Copyright 2023 EPAM Systems.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,8 @@ import com.epam.digital.data.platform.geoserver.service.LayersService;
 import com.epam.digital.data.platform.geoserver.service.StoreService;
 import com.epam.digital.data.platform.geoserver.service.WorkspaceService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
@@ -43,7 +45,7 @@ public class GeoserverPublisherApplication implements ApplicationRunner {
   private final GeoMetadataService metadataService;
 
   public GeoserverPublisherApplication(
-      ObjectMapper yamlObjectMapper,
+      @Qualifier("yamlObjectMapper") ObjectMapper yamlObjectMapper,
       WorkspaceService workspaceService,
       StoreService storeService,
       LayersService layersService,

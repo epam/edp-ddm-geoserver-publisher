@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 EPAM Systems.
+ * Copyright 2023 EPAM Systems.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,24 +16,23 @@
 
 package com.epam.digital.data.platform.geoserver.service;
 
-import org.geoserver.openapi.model.catalog.DataStoreInfo;
-import org.geoserver.openapi.model.catalog.WorkspaceInfo;
-import org.geoserver.openapi.v1.model.DataStoreResponse;
-import org.geoserver.restconfig.client.DataStoresClient;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.epam.digital.data.platform.geoserver.client.GeoserverFeignClient;
+import com.epam.digital.data.platform.geoserver.model.DataStoreInfoWrapper;
+import com.epam.digital.data.platform.geoserver.model.DataStoreWrapper;
+import com.epam.digital.data.platform.geoserver.model.WorkspaceInfo;
+import feign.FeignException;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.Map;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class StoreServiceTest {
@@ -42,48 +41,52 @@ class StoreServiceTest {
 
   private StoreService service;
 
-  @Mock
-  private DataStoresClient dataStoresClient;
+  @Mock private GeoserverFeignClient geoserverFeignClient;
   private final Map<String, String> storeConnectionParameters = Map.of("key", "value");
 
   @BeforeEach
   void beforeEach() {
-    service = new StoreService(dataStoresClient, storeConnectionParameters);
+    service = new StoreService(geoserverFeignClient, storeConnectionParameters);
   }
 
   @Test
   void expectStoreIsCreatedIfNotExists() {
-    when(dataStoresClient.findByWorkspaceAndName(REGISTER_NAME, REGISTER_NAME))
-            .thenReturn(Optional.empty());
+    when(geoserverFeignClient.getDataStore(REGISTER_NAME, REGISTER_NAME, true))
+        .thenThrow(FeignException.NotFound.class).thenReturn(new DataStoreWrapper());
 
     var workspace = new WorkspaceInfo().name(REGISTER_NAME);
 
     service.create(workspace);
 
-    ArgumentCaptor<DataStoreInfo> dataStoreCaptor = ArgumentCaptor.forClass(DataStoreInfo.class);
-    verify(dataStoresClient).create(eq(REGISTER_NAME), dataStoreCaptor.capture());
+    ArgumentCaptor<DataStoreInfoWrapper> dataStoreCaptor =
+        ArgumentCaptor.forClass(DataStoreInfoWrapper.class);
+    verify(geoserverFeignClient).createDatastore(eq(REGISTER_NAME), dataStoreCaptor.capture());
     var actualDataStore = dataStoreCaptor.getValue();
-    assertThat(actualDataStore.getEnabled()).isTrue();
-    assertThat(actualDataStore.getName()).isEqualTo(REGISTER_NAME);
-    assertThat(actualDataStore.getWorkspace()).isEqualTo(workspace);
-    assertThat(actualDataStore.getConnectionParameters()).isEqualTo(storeConnectionParameters);
+    assertThat(actualDataStore.getDataStore().getEnabled()).isTrue();
+    assertThat(actualDataStore.getDataStore().getName()).isEqualTo(REGISTER_NAME);
+    assertThat(actualDataStore.getDataStore().getWorkspace()).isEqualTo(workspace);
+    assertThat(actualDataStore.getDataStore().getConnectionParameters())
+        .isEqualTo(storeConnectionParameters);
   }
 
   @Test
   void expectStoreIsUpdatedIfAlreadyExists() {
-    when(dataStoresClient.findByWorkspaceAndName(REGISTER_NAME, REGISTER_NAME))
-            .thenReturn(Optional.of(new DataStoreResponse()));
+    when(geoserverFeignClient.getDataStore(REGISTER_NAME, REGISTER_NAME, true))
+        .thenReturn(new DataStoreWrapper());
 
     var workspace = new WorkspaceInfo().name(REGISTER_NAME);
 
     service.create(workspace);
 
-    ArgumentCaptor<DataStoreInfo> dataStoreCaptor = ArgumentCaptor.forClass(DataStoreInfo.class);
-    verify(dataStoresClient).update(eq(REGISTER_NAME), dataStoreCaptor.capture());
+    ArgumentCaptor<DataStoreInfoWrapper> dataStoreCaptor =
+        ArgumentCaptor.forClass(DataStoreInfoWrapper.class);
+    verify(geoserverFeignClient)
+        .modifyDataStore(eq(REGISTER_NAME), eq(REGISTER_NAME), dataStoreCaptor.capture());
     var actualDataStore = dataStoreCaptor.getValue();
-    assertThat(actualDataStore.getEnabled()).isTrue();
-    assertThat(actualDataStore.getName()).isEqualTo(REGISTER_NAME);
-    assertThat(actualDataStore.getWorkspace()).isEqualTo(workspace);
-    assertThat(actualDataStore.getConnectionParameters()).isEqualTo(storeConnectionParameters);
+    assertThat(actualDataStore.getDataStore().getEnabled()).isTrue();
+    assertThat(actualDataStore.getDataStore().getName()).isEqualTo(REGISTER_NAME);
+    assertThat(actualDataStore.getDataStore().getWorkspace()).isEqualTo(workspace);
+    assertThat(actualDataStore.getDataStore().getConnectionParameters())
+        .isEqualTo(storeConnectionParameters);
   }
 }

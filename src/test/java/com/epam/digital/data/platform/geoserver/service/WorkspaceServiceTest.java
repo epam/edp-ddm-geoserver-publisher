@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 EPAM Systems.
+ * Copyright 2023 EPAM Systems.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,24 +16,25 @@
 
 package com.epam.digital.data.platform.geoserver.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.epam.digital.data.platform.geoserver.client.GeoserverFeignClient;
+import com.epam.digital.data.platform.geoserver.model.GetWorkspaceResponse;
 import com.epam.digital.data.platform.geoserver.model.SettingsYaml.General;
 import com.epam.digital.data.platform.geoserver.model.SettingsYaml.Settings;
-import org.geoserver.openapi.model.catalog.WorkspaceInfo;
-import org.geoserver.openapi.v1.model.WorkspaceSummary;
-import org.geoserver.restconfig.client.WorkspacesClient;
+import com.epam.digital.data.platform.geoserver.model.WorkspaceInfo;
+import com.epam.digital.data.platform.geoserver.model.WorkspaceWrapper;
+
+import feign.FeignException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class WorkspaceServiceTest {
@@ -42,17 +43,17 @@ class WorkspaceServiceTest {
 
   private WorkspaceService service;
 
-  @Mock
-  private WorkspacesClient workspacesClient;
+  @Mock private GeoserverFeignClient geoserverFeignClient;
 
   @BeforeEach
   void beforeEach() {
-    service = new WorkspaceService(workspacesClient);
+    service = new WorkspaceService(geoserverFeignClient);
   }
 
   @Test
   void expectWorkspaceIsCreatedIfNotExists() {
-    when(workspacesClient.findByName(REGISTER_NAME)).thenReturn(Optional.empty());
+    when(geoserverFeignClient.getWorkspace(REGISTER_NAME, true))
+        .thenThrow(FeignException.NotFound.class).thenReturn(new GetWorkspaceResponse());
 
     var settings = new Settings();
     settings.setGeneral(new General());
@@ -62,15 +63,15 @@ class WorkspaceServiceTest {
 
     assertThat(actual.getName()).isEqualTo(REGISTER_NAME);
 
-    ArgumentCaptor<WorkspaceInfo> workspaceCaptor = ArgumentCaptor.forClass(WorkspaceInfo.class);
-    verify(workspacesClient).create(workspaceCaptor.capture());
-    assertThat(workspaceCaptor.getValue().getName()).isEqualTo(REGISTER_NAME);
+    ArgumentCaptor<WorkspaceWrapper> workspaceCaptor = ArgumentCaptor.forClass(WorkspaceWrapper.class);
+    verify(geoserverFeignClient).createWorkspace(workspaceCaptor.capture(), eq(false));
+    assertThat(workspaceCaptor.getValue().getWorkspace().getName()).isEqualTo(REGISTER_NAME);
   }
 
   @Test
   void expectWorkspaceIsUpdatedIfAlreadyExists() {
-    when(workspacesClient.findByName(REGISTER_NAME))
-        .thenReturn(Optional.of(new WorkspaceSummary()));
+    when(geoserverFeignClient.getWorkspace(REGISTER_NAME, true))
+        .thenReturn(new GetWorkspaceResponse());
 
     var settings = new Settings();
     settings.setGeneral(new General());
@@ -80,8 +81,8 @@ class WorkspaceServiceTest {
 
     assertThat(actual.getName()).isEqualTo(REGISTER_NAME);
 
-    ArgumentCaptor<WorkspaceInfo> workspaceCaptor = ArgumentCaptor.forClass(WorkspaceInfo.class);
-    verify(workspacesClient).update(eq(REGISTER_NAME), workspaceCaptor.capture());
-    assertThat(workspaceCaptor.getValue().getName()).isEqualTo(REGISTER_NAME);
+    ArgumentCaptor<WorkspaceWrapper> workspaceCaptor = ArgumentCaptor.forClass(WorkspaceWrapper.class);
+    verify(geoserverFeignClient).modifyWorkspace(eq(REGISTER_NAME), workspaceCaptor.capture());
+    assertThat(workspaceCaptor.getValue().getWorkspace().getName()).isEqualTo(REGISTER_NAME);
   }
 }

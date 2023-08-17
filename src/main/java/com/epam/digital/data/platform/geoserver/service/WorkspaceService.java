@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 EPAM Systems.
+ * Copyright 2023 EPAM Systems.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,27 +16,37 @@
 
 package com.epam.digital.data.platform.geoserver.service;
 
+import com.epam.digital.data.platform.geoserver.client.GeoserverFeignClient;
+import com.epam.digital.data.platform.geoserver.model.GetWorkspaceResponse;
 import com.epam.digital.data.platform.geoserver.model.SettingsYaml.Settings;
-import org.geoserver.openapi.model.catalog.WorkspaceInfo;
-import org.geoserver.restconfig.client.WorkspacesClient;
+import com.epam.digital.data.platform.geoserver.model.WorkspaceInfo;
+import com.epam.digital.data.platform.geoserver.model.WorkspaceWrapper;
+import feign.FeignException;
+import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 @Component
 public class WorkspaceService {
 
-  private final WorkspacesClient workspacesClient;
+  private final GeoserverFeignClient geoserverFeignClient;
 
-  public WorkspaceService(WorkspacesClient workspacesClient) {
-    this.workspacesClient = workspacesClient;
+  public WorkspaceService(GeoserverFeignClient geoserverFeignClient) {
+    this.geoserverFeignClient = geoserverFeignClient;
   }
 
   public WorkspaceInfo create(Settings settings) {
     var workspaceName = settings.getGeneral().getRegister();
     var workspaceInfo = new WorkspaceInfo().name(workspaceName);
-    if (workspacesClient.findByName(workspaceName).isPresent()) {
-      workspacesClient.update(workspaceName, workspaceInfo);
+    Optional<GetWorkspaceResponse> existingWorkspace;
+    try {
+      existingWorkspace = Optional.of(geoserverFeignClient.getWorkspace(workspaceName, true));
+    } catch (FeignException.NotFound ex) {
+      existingWorkspace = Optional.empty();
+    }
+    if (existingWorkspace.isPresent()) {
+      geoserverFeignClient.modifyWorkspace(workspaceName, (new WorkspaceWrapper()).workspace(workspaceInfo));
     } else {
-      workspacesClient.create(workspaceInfo);
+      geoserverFeignClient.createWorkspace((new WorkspaceWrapper()).workspace(workspaceInfo), false);
     }
     return workspaceInfo;
   }
