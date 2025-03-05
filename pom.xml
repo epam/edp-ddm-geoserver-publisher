@@ -22,7 +22,7 @@
 		<geoserver.version>2.21.0</geoserver.version>
 		<schemacrawler.version>16.11.5</schemacrawler.version>
 		<jackson.version>2.13.4</jackson.version>
-		<snakeyaml.version>1.33</snakeyaml.version>
+		<snakeyaml.version>2.0</snakeyaml.version>
 		<postgresql.version>42.3.3</postgresql.version>
 		<sonar.coverage.exclusions>
 			**/cli/**/*,
